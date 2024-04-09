@@ -203,7 +203,7 @@ You could also test kafka installation using this project producer, just using d
 $ cat << EOF > my.json
 { "foo": 1 }
 EOF
-$ docker run --rm -it --network=host --entrypoint "/opt/producer" -v $PWD:/code ghcr.io/testillano/kafkatools:latest localhost:9092 test /code/my.json --verbose
+$ docker run --rm -it --network=host --entrypoint "/opt/producer" -v $PWD:/code ghcr.io/testillano/kafkatools:latest localhost:9092 test /code/my.json --debug
 ```
 
 ## Contributing

@@ -41,6 +41,7 @@ SOFTWARE.
 #include <unistd.h>
 #include <chrono>
 #include <thread>
+#include <mutex>
 #include <fstream>
 #include <vector>
 
@@ -49,38 +50,58 @@ SOFTWARE.
 #include <cppkafka/cppkafka.h>
 
 
-class MyKafkaProducer {
-public:
-    MyKafkaProducer(const std::string& kafkaServer, const std::string& topic)
-        : server_(kafkaServer), topic_(topic) {
-        config_.set("metadata.broker.list", server_);
-        producer_ = std::make_shared<cppkafka::Producer>(config_);
-    }
-
-    void sendData(const std::string& content) {
-        producer_->produce(cppkafka::MessageBuilder(topic_).payload(content));
-        producer_->flush();
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Production on topic '%s': %s", topic_.c_str(), content.c_str()), ERT_FILE_LOCATION));
-    }
-
-private:
-    std::string server_;
-    std::string topic_;
-    cppkafka::Configuration config_;
-    std::shared_ptr<cppkafka::Producer> producer_;
-};
+std::mutex SequenceMutex;
+unsigned int Sequence{};
 
 
 const char* progname;
+
+void producer_thread(int thread_id, const std::string &brokers, const std::string &topic, const std::string &messageTemplate, unsigned int messages, int workerDelayMs) {
+    cppkafka::Configuration config = {
+        { "metadata.broker.list", brokers }
+    };
+
+    cppkafka::Producer producer(config);
+
+    while (true) {
+        int sequence_value = -1;
+
+        {
+            std::lock_guard<std::mutex> lock(SequenceMutex);
+            if (Sequence < messages) {
+                sequence_value = Sequence;
+                Sequence++;
+            }
+        }
+
+        if (sequence_value == -1) {
+            break;
+        }
+
+        std::string message = messageTemplate + std::to_string(sequence_value);
+        try {
+            producer.produce(cppkafka::MessageBuilder(topic).partition(-1).payload(message));
+            producer.flush();
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Message sent successfully on thread %d: %s", thread_id, message.c_str()), ERT_FILE_LOCATION));
+        }
+        catch (const std::exception& ex) {
+            ert::tracing::Logger::error(ex.what(), ERT_FILE_LOCATION);
+            return;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(workerDelayMs));
+    }
+}
+
 
 int main(int argc, char* argv[]) {
 
     progname = basename(argv[0]);
     ert::tracing::Logger::initialize(progname);
-    ert::tracing::Logger::setLevel("Debug");
 
-    if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <brokers (i.e. localhost:9092)> <topic> <file> [--delay-ms <value>] [--verbose]\n";
+    if (argc < 4) {
+        std::cerr << "Usage:   " << argv[0] << " <brokers> <topic> <file> [--messages: 1] [--workers: 1] [--worker-delay-ms <value>: 1000] [--debug]\n\n"
+                  << "Example: " << argv[0] << "localhost:9092 test example.json --messages 5000 --workers 10 --worker-delay-ms 10\n";
         return 1;
     }
 
@@ -90,6 +111,7 @@ int main(int argc, char* argv[]) {
     std::string topic(argv[2]);
     std::string filepath(argv[3]);
 
+    // Load file template:
     std::ifstream file(filepath);
     if (!file.is_open()) {
         ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot open provided file '%s'", filepath.c_str()), ERT_FILE_LOCATION);
@@ -99,32 +121,44 @@ int main(int argc, char* argv[]) {
     std::stringstream buffer;
     buffer << file.rdbuf();
     file.close();
-    std::string content = buffer.str();
+    std::string message = buffer.str();
 
-    int delayMs = 0;
+
+    unsigned int messages = 1;
+    unsigned int workers = 1;
+    int workerDelayMs = 1000;
+
     for (int i = 4; i < argc; ++i) {
-        if (std::string(argv[i]) == "--delay-ms") {
+        if (std::string(argv[i]) == "--messages") {
             if (i + 1 < argc) {
-                delayMs = std::stoi(argv[++i]);
+                messages = std::stoi(argv[++i]);
             }
-        } else if (std::string(argv[i]) == "--verbose") {
+        }
+        else if (std::string(argv[i]) == "--workers") {
+            if (i + 1 < argc) {
+                workers = std::stoi(argv[++i]);
+            }
+        }
+        else if (std::string(argv[i]) == "--worker-delay-ms") {
+            if (i + 1 < argc) {
+                workerDelayMs = std::stoi(argv[++i]);
+            }
+        }
+        else if (std::string(argv[i]) == "--debug") {
+            ert::tracing::Logger::setLevel("Debug");
             ert::tracing::Logger::verbose();
         }
     }
 
-    if (delayMs > 0) {
-        LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Delay before producing: %d ms", delayMs), ERT_FILE_LOCATION));
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
-        LOGDEBUG(ert::tracing::Logger::debug("Delay completed !", ERT_FILE_LOCATION));
+    // Workers:
+    std::vector<std::thread> threads;
+    for (int i = 0; i < workers; ++i) {
+        threads.emplace_back(producer_thread, i + 1, brokers, topic, message, messages, workerDelayMs);
     }
 
-    try {
-        MyKafkaProducer producer(brokers, topic);
-        producer.sendData(content);
-        LOGDEBUG(ert::tracing::Logger::debug("Message sent successfully !", ERT_FILE_LOCATION));
-    } catch (const std::exception& ex) {
-        ert::tracing::Logger::error(ex.what(), ERT_FILE_LOCATION);
-        return 1;
+    // Join threads:
+    for (auto &thread : threads) {
+        thread.join();
     }
 
     return 0;
