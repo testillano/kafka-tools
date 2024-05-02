@@ -26,10 +26,11 @@ RUN set -x && \
     set +x
 
 # confluentinc librdkafka
+#STATIC_LIB_libzstd=/usr/lib/x86_64-linux-gnu/libzstd.a ./configure && make -j${make_procs} && make install && \
 RUN set -x && \
     wget https://github.com/confluentinc/librdkafka/archive/refs/tags/${confluentinc_librdkafka_ver}.tar.gz && \
     tar xvf ${confluentinc_librdkafka_ver}.tar.gz && cd librdkafka* && \
-    STATIC_LIB_libzstd=/usr/lib/x86_64-linux-gnu/libzstd.a ./configure && make -j${make_procs} && make install && \
+    ./configure && make -j${make_procs} && make install && \
     cd .. && rm -rf * && \
     set +x
 

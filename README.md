@@ -197,13 +197,10 @@ $ bin/kafka-console-consumer.sh --topic test --bootstrap-server localhost:9092 -
 
 ## Kafka-tools producer
 
-You could also test kafka installation using this project producer, just using docker image, for example:
+You could also test kafka installation using this simple producer, just using docker image, for example:
 
 ```bash
-$ cat << EOF > my.json
-{ "foo": 1 }
-EOF
-$ docker run --rm -it --network=host --entrypoint "/opt/producer" -v $PWD:/code ghcr.io/testillano/kafkatools:latest localhost:9092 test /code/my.json --debug
+$ docker run --rm -it --network=host --entrypoint "/opt/producer" ghcr.io/testillano/kafkatools:latest --debug
 ```
 
 ## Contributing

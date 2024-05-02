@@ -56,7 +56,7 @@ unsigned int Sequence{};
 
 const char* progname;
 
-void producer_thread(int thread_id, const std::string &brokers, const std::string &topic, const std::string &messageTemplate, unsigned int messages, int workerDelayMs) {
+void producer_thread(int thread_id, const std::string &brokers, const std::string &topic, const std::string &message, unsigned int maxMessages, int workerDelayMs) {
     cppkafka::Configuration config = {
         { "metadata.broker.list", brokers }
     };
@@ -68,7 +68,7 @@ void producer_thread(int thread_id, const std::string &brokers, const std::strin
 
         {
             std::lock_guard<std::mutex> lock(SequenceMutex);
-            if (Sequence < messages) {
+            if (Sequence < maxMessages) {
                 sequence_value = Sequence;
                 Sequence++;
             }
@@ -78,11 +78,11 @@ void producer_thread(int thread_id, const std::string &brokers, const std::strin
             break;
         }
 
-        std::string message = messageTemplate + std::to_string(sequence_value);
+        std::string msg = message + std::to_string(sequence_value);
         try {
-            producer.produce(cppkafka::MessageBuilder(topic).partition(-1).payload(message));
+            producer.produce(cppkafka::MessageBuilder(topic).partition(-1).payload(msg));
             producer.flush();
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Message sent successfully on thread %d: %s", thread_id, message.c_str()), ERT_FILE_LOCATION));
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Message sent successfully on thread %d: %s", thread_id, msg.c_str()), ERT_FILE_LOCATION));
         }
         catch (const std::exception& ex) {
             ert::tracing::Logger::error(ex.what(), ERT_FILE_LOCATION);
@@ -93,45 +93,54 @@ void producer_thread(int thread_id, const std::string &brokers, const std::strin
     }
 }
 
+void usage(const char *progname) {
+    std::cout << "Usage:   " << progname << " [-h|--help] [--brokers <brokers>] [--topic <topic>] [--message <message>] [--max-messages <value>] [--workers <value>] [--worker-delay-ms <value>] [--debug]\n\n"
+              << "         brokers:         defaults to 'localhost:9092'\n"
+              << "         topic:           defaults to 'test'\n"
+              << "         message:         defaults to 'hello-world'\n"
+              << "         max-messages:    defaults to '1'\n"
+              << "         workers:         defaults to '1'\n"
+              << "         worker-delay-ms: defaults to '1000'\n\n";
+
+    exit(0);
+}
 
 int main(int argc, char* argv[]) {
 
     progname = basename(argv[0]);
     ert::tracing::Logger::initialize(progname);
 
-    if (argc < 4) {
-        std::cerr << "Usage:   " << argv[0] << " <brokers> <topic> <file> [--messages: 1] [--workers: 1] [--worker-delay-ms <value>: 1000] [--debug]\n\n"
-                  << "Example: " << argv[0] << "localhost:9092 test example.json --messages 5000 --workers 10 --worker-delay-ms 10\n";
-        return 1;
-    }
-
     LOGINFORMATIONAL(ert::tracing::Logger::informational("Starting ...", ERT_FILE_LOCATION));
 
-    std::string brokers(argv[1]);
-    std::string topic(argv[2]);
-    std::string filepath(argv[3]);
-
-    // Load file template:
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
-        ert::tracing::Logger::error(ert::tracing::Logger::asString("Cannot open provided file '%s'", filepath.c_str()), ERT_FILE_LOCATION);
-        return 1;
-    }
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    file.close();
-    std::string message = buffer.str();
-
-
-    unsigned int messages = 1;
+    std::string brokers("localhost:9092");
+    std::string topic("test");
+    std::string message("hello-world");
+    unsigned int maxMessages = 1;
     unsigned int workers = 1;
     int workerDelayMs = 1000;
 
-    for (int i = 4; i < argc; ++i) {
-        if (std::string(argv[i]) == "--messages") {
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help") {
+            usage(progname);
+        }
+        if (std::string(argv[i]) == "--brokers") {
             if (i + 1 < argc) {
-                messages = std::stoi(argv[++i]);
+                brokers = argv[++i];
+            }
+        }
+        if (std::string(argv[i]) == "--topic") {
+            if (i + 1 < argc) {
+                topic = argv[++i];
+            }
+        }
+        if (std::string(argv[i]) == "--message") {
+            if (i + 1 < argc) {
+                message = argv[++i];
+            }
+        }
+        if (std::string(argv[i]) == "--max-messages") {
+            if (i + 1 < argc) {
+                maxMessages = std::stoi(argv[++i]);
             }
         }
         else if (std::string(argv[i]) == "--workers") {
@@ -153,7 +162,7 @@ int main(int argc, char* argv[]) {
     // Workers:
     std::vector<std::thread> threads;
     for (int i = 0; i < workers; ++i) {
-        threads.emplace_back(producer_thread, i + 1, brokers, topic, message, messages, workerDelayMs);
+        threads.emplace_back(producer_thread, i + 1, brokers, topic, message, maxMessages, workerDelayMs);
     }
 
     // Join threads:
