@@ -225,7 +225,7 @@ $ docker run --rm -it --network=host --entrypoint "/opt/udp-server-kafka-produce
 
 It is recommended to read this guide to work with unix sockets and docker containers: https://github.com/testillano/h2agent/tree/master?tab=readme-ov-file#working-with-unix-sockets-and-docker-containers. There, `udp-server-h2client` is the functional equivalent to this `udp-server-kafka-producer`.
 
-In the following example, the we will produce 1000 messages per second during about 10 seconds, with the sequence as message content for topic 'test':
+In the following example, we will produce 1000 messages per second during about 10 seconds, with the sequence as message content for topic 'test':
 
 ```bash
 $ docker volume create --name=socketVolume
