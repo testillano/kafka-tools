@@ -195,12 +195,42 @@ $ bin/kafka-console-producer.sh --topic test --bootstrap-server localhost:9092 #
 $ bin/kafka-console-consumer.sh --topic test --bootstrap-server localhost:9092 --from-beginning # terminal 2
 ```
 
-## Kafka-tools producer
+## Examples
+
+### Kafka-producer
 
 You could also test kafka installation using this simple producer, just using docker image, for example:
 
 ```bash
-$ docker run --rm -it --network=host --entrypoint "/opt/producer" ghcr.io/testillano/kafkatools:latest --debug
+$ docker run --rm -it --network=host --entrypoint "/opt/kafka-producer" ghcr.io/testillano/kafkatools:latest --help
+```
+
+You could omit entry point, as that simple producer is the default for project image.
+
+### Udp-server-kafka-producer
+
+This is an advanced kafka producer which triggers actively kafka messages for every UDP reception. You can use netcat in bash, to generate UDP messages easily:
+
+```
+$ echo -n "<message here>" | nc -u -q0 -w1 -U /tmp/udp.sock
+```
+
+But, you could also use the `h2agent` project UDP client generator (https://github.com/testillano/h2agent/tree/master?tab=readme-ov-file#execution-of-udp-client-utility) which allows to drive UDP traffic load with specific rate and ramp up time.
+
+Powerful parsing capabilities allow to create any kind of message dynamically using patterns for message configured. This, together with UDP client generator will enable any kind of kafka production needs.
+
+```bash
+$ docker run --rm -it --network=host --entrypoint "/opt/udp-server-kafka-producer" ghcr.io/testillano/kafkatools:latest --help
+```
+
+It is recommended to read this guide to work with unix sockets and docker containers: https://github.com/testillano/h2agent/tree/master?tab=readme-ov-file#working-with-unix-sockets-and-docker-containers. There, `udp-server-h2client` is the functional equivalent to this `udp-server-kafka-producer`.
+
+In the following example, the we will produce 1000 messages per second during about 10 seconds, with the sequence as message content for topic 'test':
+
+```bash
+$ docker volume create --name=socketVolume
+$ docker run --rm -it --network=host -v socketVolume:/tmp --entrypoint /opt/udp-server-kafka-producer ghcr.io/testillano/kafkatools:latest -k /tmp/udp.sock --message @{udp} # terminal 1
+$ docker run --rm -it -v socketVolume:/tmp --entrypoint /opt/udp-client ghcr.io/testillano/h2agent:latest -k /tmp/udp.sock --final 10000  --pattern "@{seq}" --eps 1000 # terminal 2
 ```
 
 ## Contributing
