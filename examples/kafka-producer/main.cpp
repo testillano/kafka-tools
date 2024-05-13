@@ -78,11 +78,10 @@ void producer_thread(int thread_id, const std::string &brokers, const std::strin
             break;
         }
 
-        std::string msg = message + std::to_string(sequence_value);
         try {
-            producer.produce(cppkafka::MessageBuilder(topic).partition(-1).payload(msg));
+            producer.produce(cppkafka::MessageBuilder(topic).partition(-1).payload(message));
             producer.flush();
-            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Message sent successfully on thread %d: %s", thread_id, msg.c_str()), ERT_FILE_LOCATION));
+            LOGDEBUG(ert::tracing::Logger::debug(ert::tracing::Logger::asString("Message sent successfully on thread %d: %s", thread_id, message.c_str()), ERT_FILE_LOCATION));
         }
         catch (const std::exception& ex) {
             ert::tracing::Logger::error(ex.what(), ERT_FILE_LOCATION);

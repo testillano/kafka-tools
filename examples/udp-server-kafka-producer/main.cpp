@@ -101,6 +101,7 @@ void usage(int rc, const std::string &errorMessage = "")
        << "                be used to build valid IPv4 addresses for a given sequence.\n"
        << "   @{udp.<n>}:  UDP datagram received may contain a pipe-separated list of tokens\n"
        << "                and this pattern will be replaced by the nth one.\n"
+       << "   @{udp8.<n>}: selects the 8 least significant digits in each part if exists.\n"
        << "\n"
        << "To stop the process you can send UDP message 'EOF'.\n"
        << "To print accumulated statistics you can send UDP message 'STATS' or stop/interrupt the process.\n"
@@ -303,36 +304,42 @@ public:
         message_ = message;
 
         // Main variable @{udp}
-        std::string mainVar = "udp";
-        variables_[mainVar] = data_;
+        variables_["udp"] = data_;
 
         // Reserved variables:
         // @{udp8}
         variables_["udp8"] = extractLastNChars(data_, 8);
 
-        // Variable parts: @{udp.1}, @{udp.2{, etc.
+        // Variable parts: @{udp[8].1}, @{udp[8].2}, etc.
         char delimiter = '|';
         if (data_.find(delimiter) == std::string::npos)
             return;
 
-        std::size_t start = 0;
-        std::size_t pos = data_.find(delimiter);
-        std::string aux;
-        int count = 1;
-        while (pos != std::string::npos) {
-            aux = mainVar;
-            aux += ".";
-            aux += std::to_string(count);
-            count++;
-            variables_[aux] = data_.substr(start, pos - start);
-            start = pos + 1;
-            pos = data_.find(delimiter, start);
+        const std::string patternPrefixes[] = {"udp", "udp8"};
+        for (const std::string& patternPrefix : patternPrefixes) {
+            std::size_t start = 0;
+            std::size_t pos = data_.find(delimiter);
+            std::string var, val;
+            int count = 1;
+            while (pos != std::string::npos) {
+                var = patternPrefix;
+                var += ".";
+                var += std::to_string(count);
+                count++;
+                val = data_.substr(start, pos - start);
+                if (patternPrefix == "udp8") val = extractLastNChars(val, 8);
+                variables_[var] = val;
+                start = pos + 1;
+                pos = data_.find(delimiter, start);
+            }
+            // add latest
+            var = patternPrefix;
+            var += ".";
+            var += std::to_string(count);
+            val = data_.substr(start);
+            if (patternPrefix == "udp8") val = extractLastNChars(val, 8);
+            variables_[var] = val;
         }
-        // add latest
-        aux = mainVar;
-        aux += ".";
-        aux += std::to_string(count);
-        variables_[aux] = data_.substr(start);
     }
 
     std::string getMessage() const { // variables substitution
