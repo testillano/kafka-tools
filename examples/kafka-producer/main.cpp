@@ -93,7 +93,7 @@ void producer_thread(int thread_id, const std::string &brokers, const std::strin
 }
 
 void usage(const char *progname) {
-    std::cout << "Usage:   " << progname << " [-h|--help] [--brokers <brokers>] [--topic <topic>] [--message <message>] [--max-messages <value>] [--workers <value>] [--worker-delay-ms <value>] [--debug]\n\n"
+    std::cout << "Usage:   " << progname << " [-h|--help] [--brokers <brokers>] [--topic <topic>] [--message <file>] [--max-messages <value>] [--workers <value>] [--worker-delay-ms <value>] [--debug]\n\n"
               << "         brokers:         defaults to 'localhost:9092'\n"
               << "         topic:           defaults to 'test'\n"
               << "         message:         defaults to 'hello-world'\n"
@@ -134,7 +134,30 @@ int main(int argc, char* argv[]) {
         }
         if (std::string(argv[i]) == "--message") {
             if (i + 1 < argc) {
-                message = argv[++i];
+                std::string file_ = argv[++i];
+                std::ifstream file(file_, std::ios::binary); // binary interpretation allow even special characters (for example: \x1F (31d) or 'unit separator')
+                                                             // So, you could load files like example.bin:
+                                                             //
+                                                             //    printf "this\x1Fis\x1Fa\x1Fstring\x1Fwhere\x1Fspaces\x1Fare\x1Freplaced\x1Fby\x1Funit\x1Fseparators" > example.bin
+                if (!file) {
+                    std::cerr << "Error opening file '" << file_ << "' !" << std::endl;
+                    return 1;
+                }
+
+                message.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+
+                /*
+                std::cout << "Message read: "; // unit separator represented as '[US]'
+                for (char ch : message) {
+                    if (ch == 0x1F) {
+                        std::cout << "[US]"; // unit separator represented as '[US]'
+                    } else {
+                        std::cout << ch;
+                    }
+                }
+                std::cout << std::endl;
+                */
             }
         }
         if (std::string(argv[i]) == "--max-messages") {
