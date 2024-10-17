@@ -88,10 +88,13 @@ add_subdirectory( examples )
 # Install #
 ###########
 #SET(MY_OWN_INSTALL_PREFIX "/opt/kafkatools" CACHE PATH "Prefix prepended to install directories")
-#SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
+SET(CMAKE_INSTALL_PREFIX "${MY_OWN_INSTALL_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 
 include(GNUInstallDirs)
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
+file(GLOB_RECURSE BINARIES ${CMAKE_CURRENT_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}/bin/*)
+install(PROGRAMS ${BINARIES} DESTINATION bin)
+
 
 # Library install, at src project
 
