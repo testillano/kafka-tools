@@ -16,7 +16,7 @@ ARG confluentinc_librdkafka_ver=v2.3.0
 ARG boost_ver=1.84.0
 ARG mfontanini_cppkafka_ver=v0.4.1
 
-RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add build-base cmake wget tar linux-headers openssl-dev libev-dev openssl-libs-static zlib-static doxygen graphviz && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y wget make cmake g++ bzip2 patch libssl-dev libzstd-dev zlib1g-dev doxygen graphviz && apt-get clean ; fi
+RUN if [ "${base_os}" = "alpine" ] ; then apk update && apk add build-base cmake wget tar linux-headers openssl-dev libev-dev openssl-libs-static zlib-static curl-dev doxygen graphviz && rm -rf /var/cache/apk/* ; elif [ "${base_os}" = "ubuntu" ] ; then apt-get update && apt-get install -y wget make cmake g++ bzip2 patch libssl-dev libzstd-dev zlib1g-dev libcurl4-openssl-dev doxygen graphviz && apt-get clean ; fi
 
 # ert_logger
 RUN set -x && \

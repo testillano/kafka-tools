@@ -136,9 +136,9 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc) {
                 std::string file_ = argv[++i];
                 std::ifstream file(file_, std::ios::binary); // binary interpretation allow even special characters (for example: \x1F (31d) or 'unit separator')
-                                                             // So, you could load files like example.bin:
-                                                             //
-                                                             //    printf "this\x1Fis\x1Fa\x1Fstring\x1Fwhere\x1Fspaces\x1Fare\x1Freplaced\x1Fby\x1Funit\x1Fseparators" > example.bin
+                // So, you could load files like example.bin:
+                //
+                //    printf "this\x1Fis\x1Fa\x1Fstring\x1Fwhere\x1Fspaces\x1Fare\x1Freplaced\x1Fby\x1Funit\x1Fseparators" > example.bin
                 if (!file) {
                     std::cerr << "Error opening file '" << file_ << "' !" << std::endl;
                     return 1;

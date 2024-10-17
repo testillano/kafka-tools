@@ -12,6 +12,7 @@ ${CMAKE_EXE_LINKER_FLAGS}
 
         cppkafka
         rdkafka
+        curl
 
         z
         zstd
