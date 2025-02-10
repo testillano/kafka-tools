@@ -5,6 +5,7 @@
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://github.com/testillano)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/testillano/kafkatools/graphs/commit-activity)
 [![Main project workflow](https://github.com/testillano/kafka-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/testillano/kafka-tools/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/testillano/kafka-tools.svg)](https://github.com/testillano/kafka-tools/pkgs/container/kafkatools)
 
 This project is based on @mfontanini cppkafka library (https://github.com/mfontanini/cppkafka) and so on, based on @confluentinc librdkafka library (https://github.com/confluentinc/librdkafka).
 
